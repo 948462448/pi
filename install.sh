@@ -583,86 +583,114 @@ EOF
 install_claude_code() {
   local lang="$1"
   local edition="$2"
-  local target="$HOME/.claude/skills/pi"
-  # Clean old install to ensure full overwrite
+  local skills_base="$HOME/.claude/skills"
+  local agents_dir="$HOME/.claude/agents"
+  local commands_dir="$HOME/.claude/commands"
+  local target="$skills_base/pi"
+
+  # Clean all PI skill directories — including broken legacy nested layouts
+  # (older installer versions placed .claude-plugin/, agents/, commands/ INSIDE
+  # the skill dir, which is invalid and prevented Claude Code from recognizing
+  # the skill).
   rm -rf "${target:?}"
-  mkdir -p "$target/.claude-plugin"
-  # plugin.json must be in .claude-plugin/ for Claude Code to recognize the plugin
-  smart_copy "$SCRIPT_DIR/.claude-plugin/plugin.json" "$target/.claude-plugin/plugin.json" 2>/dev/null || true
-  smart_copy "$SCRIPT_DIR/.claude-plugin/marketplace.json" "$target/.claude-plugin/marketplace.json" 2>/dev/null || true
+  rm -rf "$skills_base/pi-en" "$skills_base/pi-progressive" "$skills_base/pi-en-progressive"
+
+  # Skill directories MUST contain ONLY SKILL.md (and optional references/).
+  # Agents and commands live in their own global directories so Claude Code
+  # discovers them properly.
+
+  local primary_installed=0
+
+  # --- Chinese skill ---
   if [[ "$lang" == "1" || "$lang" == "3" ]]; then
     if [[ "$edition" == "1" || "$edition" == "3" ]]; then
-      mkdir -p "$target/skills/pi"
-      smart_copy "$SCRIPT_DIR/claude-code/pi/SKILL.md" "$target/skills/pi/SKILL.md" 2>/dev/null || true
-    fi
-    if [[ "$edition" == "2" ]]; then
-      # Progressive only → install as main skill (name stays "pi")
-      mkdir -p "$target/skills/pi"
-      smart_copy "$SCRIPT_DIR/claude-code/pi-progressive/SKILL.md" "$target/skills/pi/SKILL.md" 2>/dev/null || true
-      if [[ -d "$SCRIPT_DIR/claude-code/pi-progressive/references" ]]; then
-        smart_copy_dir "$SCRIPT_DIR/claude-code/pi-progressive/references" "$target/skills/pi/references" 2>/dev/null || true
-      fi
-    fi
-    if [[ "$edition" == "3" ]]; then
-      # Both → progressive goes to separate dir
-      mkdir -p "$target/skills/pi-progressive"
-      smart_copy "$SCRIPT_DIR/claude-code/pi-progressive/SKILL.md" "$target/skills/pi-progressive/SKILL.md" 2>/dev/null || true
-      if [[ -d "$SCRIPT_DIR/claude-code/pi-progressive/references" ]]; then
-        smart_copy_dir "$SCRIPT_DIR/claude-code/pi-progressive/references" "$target/skills/pi-progressive/references" 2>/dev/null || true
-      fi
-    fi
-  fi
-  if [[ "$lang" == "2" || "$lang" == "3" ]]; then
-    if [[ "$edition" == "1" || "$edition" == "3" ]]; then
-      mkdir -p "$target/skills/pi-en"
-      # Use claude-code/ variants (optimized for Claude Code)
-      if [[ -f "$SCRIPT_DIR/claude-code/pi-en/SKILL.md" ]]; then
-        smart_copy "$SCRIPT_DIR/claude-code/pi-en/SKILL.md" "$target/skills/pi-en/SKILL.md"
-      else
-        smart_copy "$SCRIPT_DIR/skills/pi-en/SKILL.md" "$target/skills/pi-en/SKILL.md" 2>/dev/null || true
+      if [[ -f "$SCRIPT_DIR/claude-code/pi/SKILL.md" ]]; then
+        mkdir -p "$target"
+        smart_copy "$SCRIPT_DIR/claude-code/pi/SKILL.md" "$target/SKILL.md"
+        primary_installed=1
       fi
     fi
     if [[ "$edition" == "2" ]]; then
-      # Progressive only → install as main skill (name stays "pi-en")
-      mkdir -p "$target/skills/pi-en"
-      if [[ -f "$SCRIPT_DIR/claude-code/pi-en-progressive/SKILL.md" ]]; then
-        smart_copy "$SCRIPT_DIR/claude-code/pi-en-progressive/SKILL.md" "$target/skills/pi-en/SKILL.md"
-      else
-        smart_copy "$SCRIPT_DIR/skills/pi-en-progressive/SKILL.md" "$target/skills/pi-en/SKILL.md" 2>/dev/null || true
-      fi
-      if [[ -d "$SCRIPT_DIR/claude-code/pi-en-progressive/references" ]]; then
-        smart_copy_dir "$SCRIPT_DIR/claude-code/pi-en-progressive/references" "$target/skills/pi-en/references" 2>/dev/null || true
-      elif [[ -d "$SCRIPT_DIR/skills/pi-en-progressive/references" ]]; then
-        smart_copy_dir "$SCRIPT_DIR/skills/pi-en-progressive/references" "$target/skills/pi-en/references" 2>/dev/null || true
+      if [[ -f "$SCRIPT_DIR/claude-code/pi-progressive/SKILL.md" ]]; then
+        mkdir -p "$target"
+        smart_copy "$SCRIPT_DIR/claude-code/pi-progressive/SKILL.md" "$target/SKILL.md"
+        if [[ -d "$SCRIPT_DIR/claude-code/pi-progressive/references" ]]; then
+          smart_copy_dir "$SCRIPT_DIR/claude-code/pi-progressive/references" "$target/references"
+        fi
+        primary_installed=1
       fi
     fi
     if [[ "$edition" == "3" ]]; then
-      # Both → progressive goes to separate dir
-      mkdir -p "$target/skills/pi-en-progressive"
-      if [[ -f "$SCRIPT_DIR/claude-code/pi-en-progressive/SKILL.md" ]]; then
-        smart_copy "$SCRIPT_DIR/claude-code/pi-en-progressive/SKILL.md" "$target/skills/pi-en-progressive/SKILL.md"
-      else
-        smart_copy "$SCRIPT_DIR/skills/pi-en-progressive/SKILL.md" "$target/skills/pi-en-progressive/SKILL.md" 2>/dev/null || true
-      fi
-      if [[ -d "$SCRIPT_DIR/claude-code/pi-en-progressive/references" ]]; then
-        smart_copy_dir "$SCRIPT_DIR/claude-code/pi-en-progressive/references" "$target/skills/pi-en-progressive/references" 2>/dev/null || true
-      elif [[ -d "$SCRIPT_DIR/skills/pi-en-progressive/references" ]]; then
-        smart_copy_dir "$SCRIPT_DIR/skills/pi-en-progressive/references" "$target/skills/pi-en-progressive/references" 2>/dev/null || true
+      if [[ -f "$SCRIPT_DIR/claude-code/pi-progressive/SKILL.md" ]]; then
+        mkdir -p "$skills_base/pi-progressive"
+        smart_copy "$SCRIPT_DIR/claude-code/pi-progressive/SKILL.md" "$skills_base/pi-progressive/SKILL.md"
+        if [[ -d "$SCRIPT_DIR/claude-code/pi-progressive/references" ]]; then
+          smart_copy_dir "$SCRIPT_DIR/claude-code/pi-progressive/references" "$skills_base/pi-progressive/references"
+        fi
       fi
     fi
   fi
-  mkdir -p "$target/agents"
+
+  # --- English skill ---
+  if [[ "$lang" == "2" || "$lang" == "3" ]]; then
+    local en_src="$SCRIPT_DIR/claude-code/pi-en"
+    local en_prog_src="$SCRIPT_DIR/claude-code/pi-en-progressive"
+    [[ ! -f "$en_src/SKILL.md" ]] && en_src="$SCRIPT_DIR/skills/pi-en"
+    [[ ! -f "$en_prog_src/SKILL.md" ]] && en_prog_src="$SCRIPT_DIR/skills/pi-en-progressive"
+
+    # If Chinese wasn't installed, English becomes primary at $target
+    local en_dir="$skills_base/pi-en"
+    [[ "$primary_installed" == "0" ]] && en_dir="$target"
+
+    if [[ "$edition" == "1" || "$edition" == "3" ]]; then
+      if [[ -f "$en_src/SKILL.md" ]]; then
+        mkdir -p "$en_dir"
+        smart_copy "$en_src/SKILL.md" "$en_dir/SKILL.md"
+      fi
+    fi
+    if [[ "$edition" == "2" ]]; then
+      if [[ -f "$en_prog_src/SKILL.md" ]]; then
+        mkdir -p "$en_dir"
+        smart_copy "$en_prog_src/SKILL.md" "$en_dir/SKILL.md"
+        if [[ -d "$en_prog_src/references" ]]; then
+          smart_copy_dir "$en_prog_src/references" "$en_dir/references"
+        fi
+      fi
+    fi
+    if [[ "$edition" == "3" ]]; then
+      if [[ -f "$en_prog_src/SKILL.md" ]]; then
+        mkdir -p "$skills_base/pi-en-progressive"
+        smart_copy "$en_prog_src/SKILL.md" "$skills_base/pi-en-progressive/SKILL.md"
+        if [[ -d "$en_prog_src/references" ]]; then
+          smart_copy_dir "$en_prog_src/references" "$skills_base/pi-en-progressive/references"
+        fi
+      fi
+    fi
+  fi
+
+  # --- Agents → ~/.claude/agents/ ---
+  mkdir -p "$agents_dir"
+  rm -f "$agents_dir/pi-coach.md" "$agents_dir/pi-teammate.md" \
+        "$agents_dir/pi-coach-en.md" "$agents_dir/pi-teammate-en.md" 2>/dev/null || true
   if [[ "$lang" == "1" || "$lang" == "3" ]]; then
-    smart_copy "$SCRIPT_DIR/agents/pi-coach.md" "$target/agents/" 2>/dev/null || true
-    smart_copy "$SCRIPT_DIR/agents/pi-teammate.md" "$target/agents/" 2>/dev/null || true
+    [[ -f "$SCRIPT_DIR/agents/pi-coach.md" ]]    && smart_copy "$SCRIPT_DIR/agents/pi-coach.md"    "$agents_dir/pi-coach.md"
+    [[ -f "$SCRIPT_DIR/agents/pi-teammate.md" ]] && smart_copy "$SCRIPT_DIR/agents/pi-teammate.md" "$agents_dir/pi-teammate.md"
   fi
   if [[ "$lang" == "2" || "$lang" == "3" ]]; then
-    smart_copy "$SCRIPT_DIR/agents/pi-coach-en.md" "$target/agents/" 2>/dev/null || true
-    smart_copy "$SCRIPT_DIR/agents/pi-teammate-en.md" "$target/agents/" 2>/dev/null || true
+    [[ -f "$SCRIPT_DIR/agents/pi-coach-en.md" ]]    && smart_copy "$SCRIPT_DIR/agents/pi-coach-en.md"    "$agents_dir/pi-coach-en.md"
+    [[ -f "$SCRIPT_DIR/agents/pi-teammate-en.md" ]] && smart_copy "$SCRIPT_DIR/agents/pi-teammate-en.md" "$agents_dir/pi-teammate-en.md"
   fi
+
+  # --- Commands → ~/.claude/commands/ ---
   if [[ -d "$SCRIPT_DIR/commands" ]]; then
-    smart_copy_dir "$SCRIPT_DIR/commands" "$target/commands" 2>/dev/null || true
+    mkdir -p "$commands_dir"
+    local cmd
+    for cmd in "$SCRIPT_DIR/commands"/*.md; do
+      [[ -f "$cmd" ]] || continue
+      smart_copy "$cmd" "$commands_dir/$(basename "$cmd")"
+    done
   fi
+
   echo "  $MSG_INSTALLING $target"
 }
 
